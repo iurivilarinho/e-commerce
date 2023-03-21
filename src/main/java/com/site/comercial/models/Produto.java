@@ -58,7 +58,7 @@ public class Produto {
 	private Float largura;
 
 	@Column(name = "Imagens")
-	@OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true)
+	@OneToMany(mappedBy = "idProduto", cascade = CascadeType.ALL)
 	private List<Imagem> imagens = new ArrayList<>();
 
 	@Column(name = "SKU")

@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.site.comercial.models.Categoria;
 import com.site.comercial.models.CondicaoProduto;
+import com.site.comercial.models.Imagem;
 import com.site.comercial.models.Produto;
 import com.site.comercial.repository.CategoriaRepository;
 import com.site.comercial.repository.ProdutoRepository;
@@ -154,6 +155,8 @@ public class ProdutoForm {
 	public Produto salvar(CategoriaRepository categoriaRepository) {
 
 		Produto produto = new Produto();
+		Categoria categoria = categoriaRepository.findById(categoriaId)
+				.orElseThrow(() -> new EntityNotFoundException("Categoria não encontrada com o ID: " + categoriaId));
 
 		produto.setNome(nome);
 		produto.setDescricao(descricao);
@@ -168,19 +171,16 @@ public class ProdutoForm {
 		produto.setFabricante(fabricante);
 		produto.setCondicao(CondicaoProduto.valueOf(condicao));
 		produto.setSKU(SKU);
-		// produto.setImagens(imagens);
-
-		// Buscar Categoria do Produto pelo ID enviado no Formulário
-		// Optional<Categoria> categoria = categoriaRepository.findById(categoriaId);
-
-		produto.setCategoria(null);
+		produto.setCategoria(categoria);
 
 		return produto;
 	}
 
-	public Produto atualizar(Long id, CategoriaRepository categoriaRepository, ProdutoRepository produtoRepository) {
+	public Produto atualizar(Long id, CategoriaRepository categoriaRepository, ProdutoRepository produtoRepository, List<Imagem> imagens) {
 
 		Produto produto = produtoRepository.getReferenceById(id);
+		Categoria categoria = categoriaRepository.findById(categoriaId)
+				.orElseThrow(() -> new EntityNotFoundException("Categoria não encontrada com o ID: " + categoriaId));
 
 		produto.setNome(nome);
 		produto.setDescricao(descricao);
@@ -196,13 +196,8 @@ public class ProdutoForm {
 		produto.setCondicao(CondicaoProduto.valueOf(condicao));
 		produto.setSKU(SKU);
 		produto.setDataAtualizacao(LocalDateTime.now());
-
-		// Buscar Categoria do Produto pelo ID enviado no Formulário
-		Categoria categoria = categoriaRepository.findById(categoriaId)
-				.orElseThrow(() -> new EntityNotFoundException("Categoria não encontrada com o ID: " + categoriaId));
 		produto.setCategoria(categoria);
-
-		//produto.setImagens(fotos);
+		produto.setImagens(imagens);
 
 		return produto;
 	}

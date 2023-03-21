@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,6 +32,7 @@ import com.site.comercial.controller.form.ProdutoForm;
 import com.site.comercial.models.Imagem;
 import com.site.comercial.models.Produto;
 import com.site.comercial.repository.CategoriaRepository;
+import com.site.comercial.repository.ImagemRepository;
 import com.site.comercial.repository.ProdutoRepository;
 
 @RestController
@@ -42,36 +42,17 @@ public class ProdutoController {
 	@Autowired
 	private ProdutoRepository produtoRepository;
 
-	@PostMapping
-	@CacheEvict(value = "produtoRepository", allEntries = true)
-	@Transactional
-	public ResponseEntity<Produto> salvarProduto( ProdutoForm form, BindingResult result,
-			CategoriaRepository categoriaRepository, UriComponentsBuilder uriBuilder) {
+	@Autowired
+	private CategoriaRepository categoriaRepository;
 
-		// Verifica se houve erros de validação no formulário
-		if (result.hasErrors()) {
-			return ResponseEntity.badRequest().build();
-		}
-		Produto produto = new Produto();
-        produto.setNome(form.getNome());
-        produto.setDescricao(form.getDescricao());
-        
-        List<Imagem> imagens = new ArrayList<>();
-        for (MultipartFile imagem : form.getImagens()) {
-            Imagem imagemProduto = new Imagem();
-            imagemProduto.setProduto(produto);
-            try {
-                imagemProduto.setImagem(imagem.getBytes());
-            } catch (IOException e) {
-                 //tratar
-            }
-            imagens.add(imagemProduto);
-        }
-        produto.setImagens(imagens);
-        
-        Produto produtoSalvo = produtoRepository.save(produto);
-        
-        return ResponseEntity.created(URI.create("/produto/" + produtoSalvo.getId())).build();
+	@Autowired
+	private ImagemRepository imagemRepository;
+
+	@GetMapping
+	@Cacheable(value = "produtoRepository")
+	@Transactional
+	public Page<ProdutoDto> exibirTudo(Pageable paginacao) {
+		return produtoRepository.findAll(paginacao).map(ProdutoDto::new);
 	}
 
 	@GetMapping("/{id}")
@@ -90,22 +71,63 @@ public class ProdutoController {
 		}
 	}
 
-	@GetMapping
-	@Cacheable(value = "produtoRepository")
+	@PostMapping
+	@CacheEvict(value = "produtoRepository", allEntries = true)
 	@Transactional
-	public Page<ProdutoDto> exibirTudo(Pageable paginacao) {
-		return produtoRepository.findAll(paginacao).map(ProdutoDto::new);
+	public ResponseEntity<Produto> salvarProduto(ProdutoForm form, BindingResult result,
+			UriComponentsBuilder uriBuilder) {
+
+		// Verifica se houve erros de validação no formulário
+		if (result.hasErrors()) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		Produto produto = form.salvar(categoriaRepository);
+
+		List<Imagem> imagens = new ArrayList<>();
+
+		for (MultipartFile imagem : form.getImagens()) {
+			Imagem imagemProduto = new Imagem();
+			imagemProduto.setIdProduto(produto.getId());
+			try {
+				imagemProduto.setImagem(imagem.getBytes());
+			} catch (IOException e) {
+				// tratar
+			}
+			imagens.add(imagemProduto);
+		}
+
+		produto.setImagens(imagens);
+		produtoRepository.save(produto);
+		return ResponseEntity.created(URI.create("/produto/" + produto.getId())).build();
 	}
 
 	@PutMapping("/{id}")
 	@CacheEvict(value = "produtoRepository", allEntries = true)
 	@Transactional
-	public ResponseEntity<Produto> atualizarProduto(@PathVariable Long id, @RequestBody ProdutoForm form,
-			CategoriaRepository categoriaRepository) {
+	public ResponseEntity<Produto> atualizarProduto(@PathVariable Long id, ProdutoForm form) {
+
 		Optional<Produto> produto = produtoRepository.findById(id);
+		List<Imagem> imagensList = imagemRepository.findByIdProduto(id);
+
 		if (produto.isPresent()) {
 
-			Produto produtoAtualizado = form.atualizar(id, categoriaRepository, produtoRepository);
+			imagemRepository.deleteAll(imagensList);
+			List<Imagem> imagens = new ArrayList<>();
+
+			for (MultipartFile imagem : form.getImagens()) {
+
+				Imagem imagemProduto = new Imagem();
+				imagemProduto.setIdProduto(produto.get().getId());
+
+				try {
+					imagemProduto.setImagem(imagem.getBytes());
+				} catch (IOException e) {
+					// tratar
+				}
+				imagens.add(imagemProduto);
+			}
+			Produto produtoAtualizado = form.atualizar(id, categoriaRepository, produtoRepository, imagens);
 			return ResponseEntity.ok(produtoAtualizado);
 		} else {
 			return ResponseEntity.notFound().build();
@@ -116,8 +138,13 @@ public class ProdutoController {
 	@CacheEvict(value = "produtoRepository", allEntries = true)
 	@Transactional
 	public ResponseEntity<Void> deletarProduto(@PathVariable Long id) {
+
+		List<Imagem> imagensList = imagemRepository.findByIdProduto(id);
 		Optional<Produto> produto = produtoRepository.findById(id);
+
 		if (produto.isPresent()) {
+
+			imagemRepository.deleteAll(imagensList);
 			produtoRepository.deleteById(id);
 			return ResponseEntity.noContent().build();
 		} else {

@@ -5,9 +5,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -32,20 +30,19 @@ public class Imagem {
 	@Column(name = "Imagem")
 	private byte[] imagem;
 
-	@ManyToOne
-	@JoinColumn(name = "Id_produto")
-	private Produto produto;
+	@Column(name = "Id_produto")
+	private Long idProduto;
 
 	public Imagem() {
 
 	}
 
-	public Imagem(Long id, String nome, String contentType, byte[] imagem, Produto produto) {
+	public Imagem(Long id, String nome, String contentType, byte[] imagem, Long idProduto) {
 
 		this.nome = nome;
 		this.contentType = contentType;
 		this.imagem = imagem;
-		this.produto = produto;
+		this.idProduto = idProduto;
 	}
 
 	public Long getId() {
@@ -80,12 +77,12 @@ public class Imagem {
 		this.imagem = imagem;
 	}
 
-	public Produto getProduto() {
-		return produto;
+	public Long getIdProduto() {
+		return idProduto;
 	}
 
-	public void setProduto(Produto produto) {
-		this.produto = produto;
+	public void setIdProduto(Long idProduto) {
+		this.idProduto = idProduto;
 	}
 
 }
